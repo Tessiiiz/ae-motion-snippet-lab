@@ -1,0 +1,7 @@
+motion_lab.sqlite3
+*.sqlite3
+.env
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
