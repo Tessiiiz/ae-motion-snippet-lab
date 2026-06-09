@@ -1232,16 +1232,18 @@ pre {
   z-index: 1;
   display: flex;
   align-items: end;
-  gap: 8px;
-  height: 92px;
+  gap: 7px;
+  height: 96px;
+  padding: 0 6px;
 }
 
 .bar-set span {
   display: block;
-  width: 16px;
-  height: 62px;
+  width: 15px;
+  height: var(--bar-height, 66px);
   border-radius: 5px 5px 2px 2px;
   background: var(--accent, var(--green));
+  box-shadow: 0 12px 22px rgba(47, 155, 100, 0.16);
   transform-origin: center bottom;
 }
 
@@ -1249,7 +1251,9 @@ pre {
   position: relative;
   z-index: 1;
   display: flex;
+  align-items: center;
   gap: 12px;
+  min-height: 34px;
 }
 
 .dot-set span {
@@ -1257,6 +1261,7 @@ pre {
   height: 18px;
   border-radius: 50%;
   background: var(--accent, var(--violet));
+  transform-origin: center;
 }
 
 .orbit-wrap {
@@ -1431,8 +1436,7 @@ pre {
 }
 
 .preview-stage [class*="motion-"],
-.preview-stage [class*="motion-"]::before,
-.preview-stage [class*="motion-"] span {
+.preview-stage [class*="motion-"]::before {
   animation-delay: var(--preview-delay, 0s);
 }
 
@@ -1543,12 +1547,12 @@ pre {
 }
 
 .motion-equalizer span {
-  animation: equalizer var(--preview-duration, 980ms) ease-in-out infinite;
+  animation: equalizer var(--equalizer-duration, var(--preview-duration, 980ms)) ease-in-out infinite;
   animation-delay: var(--delay, 0ms);
 }
 
 .motion-dots span {
-  animation: dots var(--preview-duration, 900ms) ease-in-out infinite;
+  animation: dots var(--dots-duration, var(--preview-duration, 900ms)) ease-in-out infinite;
   animation-delay: var(--delay, 0ms);
 }
 
@@ -1794,13 +1798,13 @@ pre {
 }
 
 @keyframes equalizer {
-  0%, 100% { transform: scaleY(var(--equalizer-low, 0.35)); }
-  50% { transform: scaleY(var(--equalizer-high, 1.25)); }
+  0%, 100% { opacity: 0.68; transform: scaleY(var(--equalizer-low, 0.35)); }
+  48% { opacity: 1; transform: scaleY(var(--equalizer-high, 1.25)); }
 }
 
 @keyframes dots {
-  0%, 100% { opacity: 0.32; transform: translateY(0) scale(0.86); }
-  45% { opacity: 1; transform: translateY(-18px) scale(1); }
+  0%, 100% { opacity: var(--opacity-low-visible, 0.32); transform: scale(0.72); }
+  45% { opacity: var(--opacity-high, 1); transform: scale(1.16); }
 }
 
 @keyframes flipCard {

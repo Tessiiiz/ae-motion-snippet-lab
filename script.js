@@ -612,18 +612,24 @@ center + [Math.cos(a) * radius, Math.sin(a) * radius];`, params(p("radius", "Rad
     ["loop-pingpong-keyframes", "Loop Pingpong Keyframes", "Any keyframed", "Any property with keyframes", "pill", "pingpong", accentSet.violet, "General", `loopOut("pingpong");`, []],
     ["loop-offset-keyframes", "Loop Offset Keyframes", "Any keyframed", "Any property with keyframes", "box", "parallax", accentSet.teal, "General", `loopOut("offset");`, []],
     ["time-pingpong", "Time Pingpong", "Time Remap", "Layer > Time > Enable Time Remapping", "progress", "progress", accentSet.coral, "Transition", `loopOut("pingpong");`, []],
-    ["loading-dots-opacity", "Loading Dots Opacity", "Opacity", "Transform > Opacity", "dots", "dots", accentSet.violet, "UI", `phase = (index % 3) * 0.18;
-cycle = ((time - inPoint + phase) % 0.9 + 0.9) % 0.9;
+    ["loading-dots-opacity", "Loading Dots Opacity", "Opacity", "Transform > Opacity", "dots", "dots", accentSet.violet, "UI", `dur = 0.9;
+low = 30;
+high = 100;
+phase = ((index - 1) % 3) * (dur / 5);
+cycle = ((time - inPoint - phase) % dur + dur) % dur;
+half = dur / 2;
 
-cycle < 0.45
-  ? ease(cycle, 0, 0.45, 30, 100)
-  : ease(cycle, 0.45, 0.9, 100, 30);`, []],
-    ["equalizer-bars-scale", "Equalizer Bars Scale", "Scale", "Transform > Scale", "bars", "equalizer", accentSet.green, "Audio", `seedRandom(index, true);
-speed = random(1.5, 3.5);
-amp = random(30, 90);
-y = 60 + Math.sin(time * speed * 2 * Math.PI + index) * amp;
+cycle < half
+  ? ease(cycle, 0, half, low, high)
+  : ease(cycle, half, dur, high, low);`, params(p("dur", "Cycle", 0.9, 0.3, 2, 0.05, "s"), p("low", "Low", 30, 0, 100, 1, "%"), p("high", "High", 100, 0, 100, 1, "%"))],
+    ["equalizer-bars-scale", "Equalizer Bars Scale", "Scale", "Transform > Scale", "bars", "equalizer", accentSet.green, "Audio", `speed = 2.4;
+amp = 70;
+seedRandom(index, true);
+rate = Math.max(0.1, speed + random(-0.7, 0.7));
+phase = random(0, Math.PI * 2);
+y = 55 + Math.sin((time - inPoint) * rate * 2 * Math.PI + phase) * amp;
 
-[value[0], Math.max(8, y)];`, []],
+[value[0], Math.max(8, y)];`, params(p("speed", "Speed", 2.4, 0.2, 8, 0.1), p("amp", "Amp", 70, 0, 140, 1, "%"))],
     ["blink-loop", "Blink Loop", "Opacity", "Transform > Opacity", "box", "neon", accentSet.amber, "UI", `speed = 2;
 low = 25;
 high = 100;
@@ -1760,10 +1766,15 @@ function previewStyleVars(preset) {
   const radiusProgress = clamp((radius || 120) / 500, 0, 1);
   const orbitRadius = clamp(24 + Math.sqrt(radiusProgress) * 40, 28, 64);
   const orbitDuration = speed ? clamp(1 / Math.abs(speed), 0.35, 8) : 0;
+  const dotsDuration = preset.motion === "dots" && dur ? clamp(dur, 0.3, 2.4) : 0;
+  const equalizerDuration = preset.motion === "equalizer" && speed ? clamp(1 / Math.abs(speed), 0.18, 3) : 0;
+  const dotDelay = dotsDuration ? dotsDuration / 5 : 0;
   const fillTarget = clamp((endNum || 100) / 100, 0.08, 1);
   const fillStart = clamp((startNum || 0) / Math.max(endNum || 100, 1), 0, 0.92);
   const waveAmp = clamp((amp || mult * 8 || 24), 4, 80);
   const equalizerScale = clamp((amp || mult * 18 || 70) / 70, 0.35, 1.8);
+  const equalizerLow = clamp(equalizerScale * 0.35, 0.18, 0.7);
+  const equalizerHigh = clamp(equalizerScale * 1.25, 0.65, 1.75);
   const slideKick = clamp(kick || overshoot || 18, 0, 120);
   const slideRecoil = -clamp(slideKick * 0.44, 0, 52);
   const opacityLow = clamp(low / 100, 0, 1);
@@ -1805,6 +1816,15 @@ function previewStyleVars(preset) {
     `--orbit-radius: ${orbitRadius}px`,
     `--orbit-offset: ${-orbitRadius}px`,
     orbitDuration ? `--orbit-duration: ${orbitDuration}s` : "",
+    dotsDuration ? `--dots-duration: ${dotsDuration}s` : "",
+    dotDelay ? `--dot-delay-1: ${-dotDelay}s` : "",
+    dotDelay ? `--dot-delay-2: ${-dotDelay * 2}s` : "",
+    equalizerDuration ? `--equalizer-duration: ${equalizerDuration}s` : "",
+    equalizerDuration ? `--eq-delay-0: ${-equalizerDuration * 0.1}s` : "",
+    equalizerDuration ? `--eq-delay-1: ${-equalizerDuration * 0.53}s` : "",
+    equalizerDuration ? `--eq-delay-2: ${-equalizerDuration * 0.91}s` : "",
+    equalizerDuration ? `--eq-delay-3: ${-equalizerDuration * 1.34}s` : "",
+    equalizerDuration ? `--eq-delay-4: ${-equalizerDuration * 1.73}s` : "",
     `--fill-start: ${fillStart}`,
     `--fill-target: ${fillTarget}`,
     `--opacity-low: ${opacityLow}`,
@@ -1813,8 +1833,8 @@ function previewStyleVars(preset) {
     `--wave-amp: ${waveAmp}px`,
     `--wave-offset: ${-waveAmp}px`,
     `--equalizer-scale: ${equalizerScale}`,
-    `--equalizer-low: ${equalizerScale * 0.35}`,
-    `--equalizer-high: ${equalizerScale * 1.25}`,
+    `--equalizer-low: ${equalizerLow}`,
+    `--equalizer-high: ${equalizerHigh}`,
     `--strength: ${strength}`,
     `--warp-scale: ${1 + Math.abs(strength) / 140 + zoom / 500}`,
     `--warp-skew: ${clamp(strength / 5, -26, 26)}deg`,
@@ -1869,13 +1889,13 @@ function buildPreview(preset, isLarge = false) {
 
   if (preset.preview === "bars") {
     return `${stageOpen}<div class="bar-set ${motion}">
-      <span style="--delay: 0ms"></span><span style="--delay: 110ms"></span><span style="--delay: 220ms"></span><span style="--delay: 330ms"></span><span style="--delay: 440ms"></span>
+      <span style="--delay: var(--eq-delay-0, -40ms); --bar-height: 58px"></span><span style="--delay: var(--eq-delay-1, -220ms); --bar-height: 78px"></span><span style="--delay: var(--eq-delay-2, -380ms); --bar-height: 66px"></span><span style="--delay: var(--eq-delay-3, -560ms); --bar-height: 86px"></span><span style="--delay: var(--eq-delay-4, -720ms); --bar-height: 70px"></span>
     </div></div>`;
   }
 
   if (preset.preview === "dots") {
     return `${stageOpen}<div class="dot-set ${motion}">
-      <span style="--delay: 0ms"></span><span style="--delay: 140ms"></span><span style="--delay: 280ms"></span>
+      <span style="--delay: 0ms"></span><span style="--delay: var(--dot-delay-1, -180ms)"></span><span style="--delay: var(--dot-delay-2, -360ms)"></span>
     </div></div>`;
   }
 
