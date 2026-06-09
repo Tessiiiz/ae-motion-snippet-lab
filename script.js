@@ -48,7 +48,7 @@ function defaultSteps(preset) {
     "วาง expression ที่ copy จากเว็บนี้"
   ];
 
-  if (preset.requirement.includes("keyframes")) {
+  if (preset.requirement === "Needs keyframes") {
     steps.unshift("ตั้ง keyframe อย่างน้อย 2 จุดก่อนใส่ expression");
   }
 
@@ -1757,7 +1757,9 @@ function previewStyleVars(preset) {
   const wiggle = clamp((amp || kick || mult * 12 || 18), 2, 120);
   const wiggleY = clamp(wiggle * 0.72, 2, 86);
   const rotation = clamp((amp || mult * 10 || 10), 2, 65);
-  const orbitRadius = clamp((radius || 120) / 2, 24, 110);
+  const radiusProgress = clamp((radius || 120) / 500, 0, 1);
+  const orbitRadius = clamp(24 + Math.sqrt(radiusProgress) * 40, 28, 64);
+  const orbitDuration = speed ? clamp(1 / Math.abs(speed), 0.35, 8) : 0;
   const fillTarget = clamp((endNum || 100) / 100, 0.08, 1);
   const fillStart = clamp((startNum || 0) / Math.max(endNum || 100, 1), 0, 0.92);
   const waveAmp = clamp((amp || mult * 8 || 24), 4, 80);
@@ -1802,6 +1804,7 @@ function previewStyleVars(preset) {
     `--drop-recoil: ${-clamp(slideKick * 0.58, 0, 80)}px`,
     `--orbit-radius: ${orbitRadius}px`,
     `--orbit-offset: ${-orbitRadius}px`,
+    orbitDuration ? `--orbit-duration: ${orbitDuration}s` : "",
     `--fill-start: ${fillStart}`,
     `--fill-target: ${fillTarget}`,
     `--opacity-low: ${opacityLow}`,
