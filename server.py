@@ -194,11 +194,16 @@ def recent_for_user(user_id: int) -> list[str]:
   return [row["preset_id"] for row in rows]
 
 
+def admin_count(conn: sqlite3.Connection) -> int:
+  return conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'admin'").fetchone()["count"]
+
+
 def admin_summary() -> dict:
   with db() as conn:
     users = conn.execute(
       "SELECT id, username, display_name, role, created_at FROM users ORDER BY created_at DESC"
     ).fetchall()
+    admin_total = admin_count(conn)
     favorite_count = conn.execute("SELECT COUNT(*) AS count FROM favorites").fetchone()["count"]
     top_rows = conn.execute(
       """
@@ -225,6 +230,15 @@ def admin_summary() -> dict:
       LIMIT 30
       """
     ).fetchall()
+    feedback_count_rows = conn.execute(
+      """
+      SELECT user_id, COUNT(*) AS count
+      FROM feedback
+      WHERE user_id IS NOT NULL
+      GROUP BY user_id
+      """
+    ).fetchall()
+    feedback_counts = {row["user_id"]: row["count"] for row in feedback_count_rows}
 
     result_users = []
     for user in users:
@@ -254,6 +268,9 @@ def admin_summary() -> dict:
           "displayName": user["display_name"],
           "role": user["role"],
           "createdAt": user["created_at"],
+          "favoriteCount": len(fav_rows),
+          "recentCount": len(recent_rows),
+          "feedbackCount": feedback_counts.get(user["id"], 0),
           "favorites": [
             {"presetId": row["preset_id"], "createdAt": row["created_at"]}
             for row in fav_rows
@@ -267,6 +284,7 @@ def admin_summary() -> dict:
 
   return {
     "users": result_users,
+    "adminCount": admin_total,
     "favoriteCount": favorite_count,
     "topFavorites": [
       {"presetId": row["preset_id"], "count": row["count"]} for row in top_rows
@@ -318,11 +336,8 @@ class MotionLabHandler(SimpleHTTPRequestHandler):
       return
 
     if parsed.path == "/api/admin/summary":
-      user = self.require_user()
+      user = self.require_admin()
       if user is None:
-        return
-      if user["role"] != "admin":
-        self.send_json({"error": "Admin only"}, HTTPStatus.FORBIDDEN)
         return
       self.send_json(admin_summary())
       return
@@ -350,6 +365,12 @@ class MotionLabHandler(SimpleHTTPRequestHandler):
 
   def do_PUT(self) -> None:
     parsed = urlparse(self.path)
+    admin_user_prefix = "/api/admin/users/"
+    if parsed.path.startswith(admin_user_prefix):
+      user_id = unquote(parsed.path[len(admin_user_prefix):])
+      self.handle_admin_user(user_id)
+      return
+
     admin_feedback_prefix = "/api/admin/feedback/"
     if parsed.path.startswith(admin_feedback_prefix):
       feedback_id = unquote(parsed.path[len(admin_feedback_prefix):])
@@ -360,6 +381,15 @@ class MotionLabHandler(SimpleHTTPRequestHandler):
     if parsed.path.startswith(prefix):
       preset_id = unquote(parsed.path[len(prefix):])
       self.handle_favorite(preset_id)
+      return
+    self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
+
+  def do_DELETE(self) -> None:
+    parsed = urlparse(self.path)
+    admin_user_prefix = "/api/admin/users/"
+    if parsed.path.startswith(admin_user_prefix):
+      user_id = unquote(parsed.path[len(admin_user_prefix):])
+      self.handle_admin_user_delete(user_id)
       return
     self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
 
@@ -608,6 +638,89 @@ class MotionLabHandler(SimpleHTTPRequestHandler):
       if cursor.rowcount == 0:
         self.send_error_json("Feedback not found", HTTPStatus.NOT_FOUND)
         return
+
+    self.send_json(admin_summary())
+
+  def handle_admin_user(self, user_id: str) -> None:
+    user = self.require_admin()
+    if user is None:
+      return
+
+    try:
+      item_id = int(user_id)
+    except ValueError:
+      self.send_error_json("Invalid user id")
+      return
+
+    data = self.read_json()
+    role = str(data.get("role", "user")).strip().lower()
+    if role not in {"admin", "user"}:
+      self.send_error_json("Invalid user role")
+      return
+
+    if item_id == user["id"]:
+      self.send_error_json("Cannot change your own role", HTTPStatus.FORBIDDEN)
+      return
+
+    with db() as conn:
+      target = conn.execute(
+        "SELECT id, role FROM users WHERE id = ?",
+        (item_id,),
+      ).fetchone()
+      if target is None:
+        self.send_error_json("User not found", HTTPStatus.NOT_FOUND)
+        return
+      if target["role"] == "admin" and role != "admin" and admin_count(conn) <= 1:
+        self.send_error_json("Cannot remove the last admin", HTTPStatus.FORBIDDEN)
+        return
+      conn.execute(
+        "UPDATE users SET role = ? WHERE id = ?",
+        (role, item_id),
+      )
+
+    self.send_json(admin_summary())
+
+  def handle_admin_user_delete(self, user_id: str) -> None:
+    user = self.require_admin()
+    if user is None:
+      return
+
+    try:
+      item_id = int(user_id)
+    except ValueError:
+      self.send_error_json("Invalid user id")
+      return
+
+    if item_id == user["id"]:
+      self.send_error_json("Cannot delete your own account", HTTPStatus.FORBIDDEN)
+      return
+
+    with db() as conn:
+      target = conn.execute(
+        "SELECT id, username, role FROM users WHERE id = ?",
+        (item_id,),
+      ).fetchone()
+      if target is None:
+        self.send_error_json("User not found", HTTPStatus.NOT_FOUND)
+        return
+      if target["role"] == "admin" and admin_count(conn) <= 1:
+        self.send_error_json("Cannot delete the last admin", HTTPStatus.FORBIDDEN)
+        return
+
+      conn.execute(
+        """
+        UPDATE feedback
+        SET user_id = NULL,
+            username = COALESCE(username, ?),
+            updated_at = ?
+        WHERE user_id = ?
+        """,
+        (target["username"], now_iso(), item_id),
+      )
+      conn.execute("DELETE FROM sessions WHERE user_id = ?", (item_id,))
+      conn.execute("DELETE FROM favorites WHERE user_id = ?", (item_id,))
+      conn.execute("DELETE FROM recent WHERE user_id = ?", (item_id,))
+      conn.execute("DELETE FROM users WHERE id = ?", (item_id,))
 
     self.send_json(admin_summary())
 

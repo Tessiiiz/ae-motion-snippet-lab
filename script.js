@@ -1728,6 +1728,34 @@ async function updateFeedbackStatus(id, status) {
   }
 }
 
+async function updateAdminUserRole(id, role) {
+  try {
+    state.adminSummary = await apiRequest(`/api/admin/users/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ role })
+    });
+    renderAdmin();
+    showToast(role === "admin" ? "User is now admin" : "User is now member");
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function deleteAdminUser(id, label) {
+  const confirmed = window.confirm(`Delete ${label}? Favorites, recent items, and sessions will be removed.`);
+  if (!confirmed) return;
+
+  try {
+    state.adminSummary = await apiRequest(`/api/admin/users/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
+    renderAdmin();
+    showToast("User deleted");
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
 function escapeHTML(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -2297,6 +2325,10 @@ function formatAdminDate(value) {
 }
 
 function renderAdmin() {
+  return renderAdminDashboard();
+}
+
+function renderAdminDashboard() {
   if (!state.apiReady || !state.user || state.user.role !== "admin") {
     elements.adminPanel.innerHTML = "";
     return;
@@ -2310,7 +2342,7 @@ function renderAdmin() {
         <strong>${icon("shield")}Admin</strong>
         <button type="button" data-admin="refresh">${icon("reset")}<span>Load</span></button>
       </div>
-      <div class="admin-note">ดูว่า user แต่ละคน favorite preset อะไรไว้</div>`;
+      <div class="admin-note">Load users, favorites, and feedback inbox.</div>`;
     return;
   }
 
@@ -2318,30 +2350,48 @@ function renderAdmin() {
   const topFavorites = (summary.topFavorites || []).slice(0, 5);
   const feedback = summary.feedback || [];
   const openFeedback = summary.openFeedbackCount || 0;
+  const feedbackTotal = summary.feedbackCount || feedback.length;
+  const closedFeedback = Math.max(feedbackTotal - openFeedback, 0);
+  const adminTotal = summary.adminCount || users.filter((user) => user.role === "admin").length;
 
   elements.adminPanel.innerHTML = `
     <div class="admin-title">
       <strong>${icon("shield")}Admin Dashboard</strong>
       <button type="button" data-admin="refresh">${icon("reset")}<span>Refresh</span></button>
     </div>
-    <div class="admin-note">${users.length} users · ${summary.favoriteCount || 0} saved favorites · ${openFeedback} open feedback</div>
-    <div class="feedback-admin">
-      <div class="admin-user-head">
+    <div class="admin-metrics">
+      <div class="admin-metric">
+        <span>Users</span>
+        <strong>${users.length}</strong>
+      </div>
+      <div class="admin-metric">
+        <span>Pending</span>
+        <strong>${openFeedback}</strong>
+      </div>
+      <div class="admin-metric">
+        <span>Favorites</span>
+        <strong>${summary.favoriteCount || 0}</strong>
+      </div>
+    </div>
+    <div class="admin-section">
+      <div class="admin-section-head">
         <strong>Feedback inbox</strong>
-        <span>${feedback.length} latest</span>
+        <span>${openFeedback} pending / ${closedFeedback} done</span>
       </div>
       <div class="feedback-list">
         ${feedback.length ? feedback.map((item) => {
           const isClosed = item.status === "closed";
           return `<div class="feedback-item${isClosed ? " is-closed" : ""}">
             <div class="feedback-item-head">
-              <strong>${escapeHTML(item.title)}</strong>
-              <button type="button" data-feedback-id="${item.id}" data-feedback-status="${isClosed ? "open" : "closed"}">${isClosed ? "Reopen" : "Done"}</button>
+              <button class="feedback-check${isClosed ? " is-done" : ""}" type="button" data-feedback-id="${item.id}" data-feedback-status="${isClosed ? "open" : "closed"}" aria-label="${isClosed ? "Mark as pending" : "Mark as done"}">${isClosed ? "✓" : ""}</button>
+              <div class="feedback-title">
+                <strong>${escapeHTML(item.title)}</strong>
+                <span class="feedback-state${isClosed ? " is-done" : ""}">${isClosed ? "จัดการแล้ว" : "ยังไม่จัดการ"}</span>
+              </div>
             </div>
             <div class="feedback-meta">
               <span>#${item.id}</span>
               <span>${escapeHTML(item.reporterName || "Anonymous")}${item.username ? ` · @${escapeHTML(item.username)}` : ""}</span>
-              <span>${escapeHTML(item.status)}</span>
               <span>${escapeHTML(formatAdminDate(item.createdAt))}</span>
             </div>
             <div class="feedback-detail">${escapeHTML(item.detail)}</div>
@@ -2350,25 +2400,52 @@ function renderAdmin() {
               ${item.presetId ? `<span>${escapeHTML(presetName(item.presetId))}</span>` : ""}
             </div>
           </div>`;
-        }).join("") : `<div class="admin-note">ยังไม่มี feedback</div>`}
+        }).join("") : `<div class="admin-note">ยังไม่มี feedback เข้ามา</div>`}
       </div>
     </div>
-    ${topFavorites.length ? `<div class="fav-chips">${topFavorites.map((item) => `<span class="fav-chip">${escapeHTML(presetName(item.presetId))} · ${item.count}</span>`).join("")}</div>` : ""}
-    <div class="admin-list">
-      ${users.map((user) => {
-        const favorites = user.favorites || [];
-        return `<div class="admin-user">
-          <div class="admin-user-head">
-            <strong>${escapeHTML(user.displayName || user.username)}</strong>
-            <span>${favorites.length} fav</span>
-          </div>
-          <div class="admin-note">@${escapeHTML(user.username)} · ${escapeHTML(user.role)}</div>
-          <div class="fav-chips">
-            ${favorites.length ? favorites.slice(0, 12).map((item) => `<span class="fav-chip">${escapeHTML(presetName(item.presetId))}</span>`).join("") : `<span class="fav-chip">No favorites</span>`}
-          </div>
-        </div>`;
-      }).join("")}
-    </div>`;
+    <div class="admin-section">
+      <div class="admin-section-head">
+        <strong>User management</strong>
+        <span>${adminTotal} admin</span>
+      </div>
+      <div class="admin-list">
+        ${users.map((user) => {
+          const favorites = user.favorites || [];
+          const recent = user.recent || [];
+          const isSelf = state.user && user.id === state.user.id;
+          const nextRole = user.role === "admin" ? "user" : "admin";
+          const userLabel = user.displayName || user.username;
+          return `<div class="admin-user">
+            <div class="admin-user-head">
+              <strong>${escapeHTML(userLabel)}</strong>
+              <span class="role-chip${user.role === "admin" ? " is-admin" : ""}">${escapeHTML(user.role)}</span>
+            </div>
+            <div class="admin-user-meta">
+              <span>@${escapeHTML(user.username)}</span>
+              <span>${favorites.length} fav</span>
+              <span>${recent.length} recent</span>
+              <span>${user.feedbackCount || 0} feedback</span>
+            </div>
+            <div class="admin-user-actions">
+              ${isSelf ? `<span class="admin-self">Current admin</span>` : `
+                <button type="button" data-user-role="${user.id}" data-role="${nextRole}">${nextRole === "admin" ? "Make admin" : "Make user"}</button>
+                <button class="danger" type="button" data-user-delete="${user.id}" data-user-label="${escapeHTML(userLabel)}">Delete</button>
+              `}
+            </div>
+            <div class="fav-chips">
+              ${favorites.length ? favorites.slice(0, 12).map((item) => `<span class="fav-chip">${escapeHTML(presetName(item.presetId))}</span>`).join("") : `<span class="fav-chip">No favorites</span>`}
+            </div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+    ${topFavorites.length ? `<div class="admin-section">
+      <div class="admin-section-head">
+        <strong>Top favorites</strong>
+        <span>${topFavorites.length} presets</span>
+      </div>
+      <div class="fav-chips">${topFavorites.map((item) => `<span class="fav-chip">${escapeHTML(presetName(item.presetId))} · ${item.count}</span>`).join("")}</div>
+    </div>` : ""}`;
 }
 
 function renderRecent() {
@@ -2795,6 +2872,18 @@ elements.adminPanel.addEventListener("click", (event) => {
   const feedbackButton = event.target.closest("[data-feedback-id]");
   if (feedbackButton) {
     updateFeedbackStatus(feedbackButton.dataset.feedbackId, feedbackButton.dataset.feedbackStatus);
+    return;
+  }
+
+  const roleButton = event.target.closest("[data-user-role]");
+  if (roleButton) {
+    updateAdminUserRole(roleButton.dataset.userRole, roleButton.dataset.role);
+    return;
+  }
+
+  const deleteButton = event.target.closest("[data-user-delete]");
+  if (deleteButton) {
+    deleteAdminUser(deleteButton.dataset.userDelete, deleteButton.dataset.userLabel || "this user");
     return;
   }
 
