@@ -1500,6 +1500,8 @@ const elements = {
   showRecent: document.querySelector("#showRecent")
 };
 
+let counterPreviewFrame = 0;
+
 const categories = ["All", ...new Set(presets.map((preset) => preset.category))];
 const categoryIcons = {
   All: "grid",
@@ -1728,21 +1730,29 @@ function previewStyleVars(preset) {
   const blur = paramValueByKey(preset, "blur", 0);
   const centerX = paramValueByKey(preset, "centerX", 50);
   const centerY = paramValueByKey(preset, "centerY", 50);
+  const hasHigh = preset.params.some((param) => param.key === "high");
 
   const decayFactor = decay ? clamp(8 / decay, 0.55, 2.4) : 1;
   const duration = dur
     ? clamp(dur * 3.1 * decayFactor, 0.55, 5.5)
     : speed
-      ? clamp(1.5 / speed, 0.35, 5)
+      ? Math.abs(speed) > 20
+        ? clamp(360 / Math.abs(speed), 0.18, 6)
+        : clamp(1.5 / Math.abs(speed), 0.35, 5)
       : bpm
         ? clamp(120 / bpm, 0.35, 2.4)
         : smooth
           ? clamp(0.45 + smooth * 12, 0.45, 4)
           : 0;
+  const keyframeAmp = clamp((amp || 0) * 220, 0, 74);
   const pulseDriver = mult ? mult * 7 : (amp || overshoot || kick || 12);
   const pulseScale = 1 + clamp(pulseDriver / 42, 0.04, 0.55);
   const breathScale = 1 + clamp((amp || mult || 4) / 95, 0.03, 0.28);
   const popOvershoot = 1 + clamp((overshoot || kick || mult * 7 || 16) / 100, 0.04, 0.7);
+  const inertialOvershoot = 1 + clamp(keyframeAmp / (decay ? decay * 12 : 90), 0.03, 0.58);
+  const inertialDip = 1 - clamp(keyframeAmp / (decay ? decay * 22 : 160), 0.02, 0.28);
+  const inertialRebound = 1 + clamp(keyframeAmp / (decay ? decay * 34 : 240), 0.015, 0.18);
+  const inertialStartY = clamp(58 + keyframeAmp * 0.72, 58, 128);
   const popStart = clamp((startScale || 0) / 100, 0, 1.2);
   const wiggle = clamp((amp || kick || mult * 12 || 18), 2, 120);
   const wiggleY = clamp(wiggle * 0.72, 2, 86);
@@ -1755,7 +1765,7 @@ function previewStyleVars(preset) {
   const slideKick = clamp(kick || overshoot || 18, 0, 120);
   const slideRecoil = -clamp(slideKick * 0.44, 0, 52);
   const opacityLow = clamp(low / 100, 0, 1);
-  const opacityHigh = high ? clamp(high / 100, 0, 1) : 1;
+  const opacityHigh = hasHigh ? clamp(high / 100, 0, 1) : 1;
   const opacityLowVisible = Math.max(opacityLow, 0.05);
 
   return [
@@ -1766,6 +1776,10 @@ function previewStyleVars(preset) {
     `--breath-scale: ${breathScale}`,
     `--pop-start: ${popStart}`,
     `--pop-overshoot: ${popOvershoot}`,
+    `--inertial-start-y: ${inertialStartY}px`,
+    `--inertial-overshoot: ${inertialOvershoot}`,
+    `--inertial-dip: ${inertialDip}`,
+    `--inertial-rebound: ${inertialRebound}`,
     `--wiggle-x: ${wiggle}px`,
     `--wiggle-y: ${wiggleY}px`,
     `--wiggle-x-neg: ${-wiggle * 0.46}px`,
@@ -1821,6 +1835,23 @@ function previewLabel(preset) {
     return hasStart && hasEnd ? `${start}-${end}` : end;
   }
   return "AE";
+}
+
+function isCounterPreview(preset) {
+  return preset.preview === "text" &&
+    preset.params.some((param) => param.key === "startNum") &&
+    preset.params.some((param) => param.key === "endNum");
+}
+
+function counterPreviewAttributes(preset) {
+  return [
+    `data-counter-preview="true"`,
+    `data-counter-start="${escapeHTML(paramValueByKey(preset, "startNum", 0))}"`,
+    `data-counter-end="${escapeHTML(paramValueByKey(preset, "endNum", 100))}"`,
+    `data-counter-dur="${escapeHTML(paramValueByKey(preset, "dur", 1.2))}"`,
+    `data-counter-switch="${escapeHTML(paramValueByKey(preset, "switchAt", 0))}"`,
+    `data-counter-slow="${escapeHTML(paramValueByKey(preset, "slowShare", 50))}"`
+  ].join(" ");
 }
 
 function buildPreview(preset, isLarge = false) {
@@ -1879,6 +1910,11 @@ function buildPreview(preset, isLarge = false) {
     </div></div>`;
   }
 
+  if (isCounterPreview(preset)) {
+    const label = previewLabel(preset);
+    return `${stageOpen}<div class="preview-object preview-text preview-counter ${motion}" ${counterPreviewAttributes(preset)}>${escapeHTML(label)}</div></div>`;
+  }
+
   const shapeClass = {
     pill: "preview-pill",
     text: "preview-text",
@@ -1908,6 +1944,94 @@ function formatPreviewNumber(value) {
   if (abs >= 1000000000) return `${formatNumber(number / 1000000000)}B`;
   if (abs >= 1000000) return `${formatNumber(number / 1000000)}M`;
   return formatNumber(number);
+}
+
+function formatCounterPreviewValue(value) {
+  const rounded = Math.round(Number(value) || 0);
+  const abs = Math.abs(rounded);
+
+  if (abs >= 1000000000) {
+    const scaled = rounded / 1000000000;
+    const compact = Math.abs(scaled) >= 100 ? Math.round(scaled) : Math.round(scaled * 10) / 10;
+    return `${formatNumber(compact)}B`;
+  }
+
+  if (abs >= 1000000) {
+    const scaled = rounded / 1000000;
+    const compact = Math.abs(scaled) >= 100 ? Math.round(scaled) : Math.round(scaled * 10) / 10;
+    return `${formatNumber(compact)}M`;
+  }
+
+  return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function easeOutUnit(progress) {
+  const p = clamp(progress, 0, 1);
+  return 1 - Math.pow(1 - p, 3);
+}
+
+function easeInOutUnit(progress) {
+  const p = clamp(progress, 0, 1);
+  return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+}
+
+function mixNumber(start, end, progress) {
+  return start + (end - start) * progress;
+}
+
+function counterPreviewValue(start, end, progress, switchAt, slowShare) {
+  const low = Math.min(start, end);
+  const high = Math.max(start, end);
+  const threshold = clamp(switchAt || low, low, high);
+  const lowSideTime = clamp(slowShare / 100, 0.05, 0.95);
+  const timeAtThreshold = start < end ? lowSideTime : 1 - lowSideTime;
+
+  if (Math.abs(end - start) < 0.001 || Math.abs(threshold - start) < 0.001 || Math.abs(threshold - end) < 0.001) {
+    return mixNumber(start, end, easeOutUnit(progress));
+  }
+
+  if (progress < timeAtThreshold) {
+    return mixNumber(start, threshold, easeOutUnit(progress / timeAtThreshold));
+  }
+
+  return mixNumber(threshold, end, easeInOutUnit((progress - timeAtThreshold) / (1 - timeAtThreshold)));
+}
+
+function syncCounterPreviewElement(element, preset) {
+  element.dataset.counterStart = String(paramValueByKey(preset, "startNum", 0));
+  element.dataset.counterEnd = String(paramValueByKey(preset, "endNum", 100));
+  element.dataset.counterDur = String(paramValueByKey(preset, "dur", 1.2));
+  element.dataset.counterSwitch = String(paramValueByKey(preset, "switchAt", 0));
+  element.dataset.counterSlow = String(paramValueByKey(preset, "slowShare", 50));
+}
+
+function updateCounterPreviews(timestamp = 0) {
+  const counters = document.querySelectorAll("[data-counter-preview]");
+  if (!counters.length) {
+    counterPreviewFrame = 0;
+    return;
+  }
+
+  counters.forEach((counter, index) => {
+    const start = Number(counter.dataset.counterStart || 0);
+    const end = Number(counter.dataset.counterEnd || 100);
+    const dur = clamp(Number(counter.dataset.counterDur || 1.2), 0.4, 12);
+    const switchAt = Number(counter.dataset.counterSwitch || 0);
+    const slowShare = Number(counter.dataset.counterSlow || 50);
+    const durationMs = dur * 1000;
+    const holdMs = 520;
+    const localTime = (timestamp + index * 130) % (durationMs + holdMs);
+    const progress = localTime > durationMs ? 1 : localTime / durationMs;
+    const current = counterPreviewValue(start, end, progress, switchAt, slowShare);
+    counter.textContent = formatCounterPreviewValue(current);
+  });
+
+  counterPreviewFrame = window.requestAnimationFrame(updateCounterPreviews);
+}
+
+function startCounterPreviews() {
+  if (counterPreviewFrame || !document.querySelector("[data-counter-preview]")) return;
+  counterPreviewFrame = window.requestAnimationFrame(updateCounterPreviews);
 }
 
 function applyParamOverrides(preset) {
@@ -2144,6 +2268,7 @@ function renderGrid() {
       </div>
     </article>`;
   }).join("");
+  startCounterPreviews();
 }
 
 function renderParams(preset) {
@@ -2206,6 +2331,7 @@ function renderDetail() {
       </div>
       <pre><code id="detailCode">${escapeHTML(code)}</code></pre>
     </div>`;
+  startCounterPreviews();
 }
 
 function render() {
@@ -2217,6 +2343,7 @@ function render() {
   renderRecent();
   renderGrid();
   renderDetail();
+  startCounterPreviews();
 }
 
 async function copyPreset(id) {
@@ -2344,6 +2471,7 @@ function replayPreview() {
   const selected = presets.find((preset) => preset.id === state.selectedId);
   if (!holder || !selected) return;
   holder.innerHTML = buildPreview(selected, true);
+  startCounterPreviews();
 }
 
 function updateParamPreview(input, selected) {
@@ -2366,7 +2494,12 @@ function updateParamPreview(input, selected) {
   }
 
   if (previewText) {
-    previewText.textContent = previewLabel(selected);
+    if (previewText.matches("[data-counter-preview]")) {
+      syncCounterPreviewElement(previewText, selected);
+    } else {
+      previewText.textContent = previewLabel(selected);
+    }
+    startCounterPreviews();
   }
 }
 

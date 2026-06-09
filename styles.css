@@ -1177,8 +1177,19 @@ pre {
   font-weight: 900;
 }
 
+.preview-counter {
+  min-width: 86px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .large .preview-text {
   font-size: 34px;
+}
+
+.large .preview-counter {
+  min-width: 142px;
 }
 
 .preview-lower {
@@ -1398,7 +1409,7 @@ pre {
 }
 
 .motion-pop-out {
-  animation: popOut 1.55s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  animation: popOut var(--preview-duration, 1.55s) cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
 .motion-inertial,
@@ -1423,19 +1434,19 @@ pre {
 }
 
 .motion-fade-in {
-  animation: fadeIn 1.7s ease-out infinite;
+  animation: fadeIn var(--preview-duration, 1.7s) ease-out infinite;
 }
 
 .motion-fade-out {
-  animation: fadeOut 1.7s ease-in infinite;
+  animation: fadeOut var(--preview-duration, 1.7s) ease-in infinite;
 }
 
 .motion-stagger {
-  animation: staggerFade 1.7s ease-out infinite;
+  animation: staggerFade var(--preview-duration, 1.7s) ease-out infinite;
 }
 
 .motion-typewriter {
-  animation: typewriter 2.1s steps(8) infinite, caret 700ms step-end infinite;
+  animation: typewriter var(--preview-duration, 2.1s) steps(8) infinite, caret 700ms step-end infinite;
 }
 
 .motion-wave {
@@ -1447,7 +1458,7 @@ pre {
 }
 
 .motion-tracking {
-  animation: tracking 1.8s ease-out infinite;
+  animation: tracking var(--preview-duration, 1.8s) ease-out infinite;
 }
 
 .motion-wiggle-position {
@@ -1463,20 +1474,20 @@ pre {
 }
 
 .motion-loop-cycle {
-  animation: loopCycle 1.4s linear infinite;
+  animation: loopCycle var(--preview-duration, 1.4s) linear infinite;
 }
 
 .motion-pingpong {
-  animation: pingpong 1.45s ease-in-out infinite;
+  animation: pingpong var(--preview-duration, 1.45s) ease-in-out infinite;
 }
 
 .motion-pendulum {
-  animation: pendulum 1.6s ease-in-out infinite;
+  animation: pendulum var(--preview-duration, 1.6s) ease-in-out infinite;
   transform-origin: 50% -35px;
 }
 
 .motion-orbit .orbit-dot {
-  animation: orbit 2.3s linear infinite;
+  animation: orbit var(--preview-duration, 2.3s) linear infinite;
 }
 
 .motion-shake {
@@ -1484,15 +1495,15 @@ pre {
 }
 
 .motion-glitch {
-  animation: glitch 850ms steps(2) infinite;
+  animation: glitch var(--preview-duration, 850ms) steps(2) infinite;
 }
 
 .motion-neon {
-  animation: neon 1.45s steps(1) infinite;
+  animation: neon var(--preview-duration, 1.45s) steps(1) infinite;
 }
 
 .motion-jump-cut {
-  animation: jumpCut 900ms steps(4) infinite;
+  animation: jumpCut var(--preview-duration, 900ms) steps(4) infinite;
 }
 
 .motion-progress .progress-fill {
@@ -1505,28 +1516,28 @@ pre {
 }
 
 .motion-dots span {
-  animation: dots 900ms ease-in-out infinite;
+  animation: dots var(--preview-duration, 900ms) ease-in-out infinite;
   animation-delay: var(--delay, 0ms);
 }
 
 .motion-flip {
-  animation: flipCard 1.7s ease-in-out infinite;
+  animation: flipCard var(--preview-duration, 1.7s) ease-in-out infinite;
 }
 
 .motion-spin {
-  animation: spinSettle 1.85s ease-out infinite;
+  animation: spinSettle var(--preview-duration, 1.85s) ease-out infinite;
 }
 
 .motion-depth {
-  animation: depthPop 1.55s ease-out infinite;
+  animation: depthPop var(--preview-duration, 1.55s) ease-out infinite;
 }
 
 .motion-parallax {
-  animation: parallax 2.8s ease-in-out infinite;
+  animation: parallax var(--preview-duration, 2.8s) ease-in-out infinite;
 }
 
 .motion-follow {
-  animation: followDelay 1.9s ease-out infinite;
+  animation: followDelay var(--preview-duration, 1.9s) ease-out infinite;
 }
 
 .motion-pulse {
@@ -1534,35 +1545,35 @@ pre {
 }
 
 .motion-lower-third {
-  animation: lowerThird 1.9s ease-out infinite;
+  animation: lowerThird var(--preview-duration, 1.9s) ease-out infinite;
 }
 
 .motion-wipe::before {
-  animation: wipeReveal 1.8s ease-in-out infinite;
+  animation: wipeReveal var(--preview-duration, 1.8s) ease-in-out infinite;
 }
 
 .motion-radial {
-  animation: radialSpin 1.5s linear infinite;
+  animation: radialSpin var(--preview-duration, 1.5s) linear infinite;
 }
 
 .motion-trim .trim-line {
-  animation: trimDraw 1.7s ease-in-out infinite;
+  animation: trimDraw var(--preview-duration, 1.7s) ease-in-out infinite;
 }
 
 .motion-layer-bounce {
-  animation: layerBounce 1.7s ease-out infinite;
+  animation: layerBounce var(--preview-duration, 1.7s) ease-out infinite;
 }
 
 .motion-hover {
-  animation: hoverLoop 2.2s ease-in-out infinite;
+  animation: hoverLoop var(--preview-duration, 2.2s) ease-in-out infinite;
 }
 
 .motion-snap {
-  animation: snapZoom 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  animation: snapZoom var(--preview-duration, 1.4s) cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
 .motion-shockwave {
-  animation: shockwave 1.4s ease-out infinite;
+  animation: shockwave var(--preview-duration, 1.4s) ease-out infinite;
 }
 
 .motion-lenswarp .lens-layer.back {
@@ -1600,10 +1611,10 @@ pre {
 }
 
 @keyframes inertial {
-  0% { transform: translateY(76px) scale(0.88); }
-  32% { transform: translateY(0) scale(var(--pop-overshoot, 1.08)); }
-  47% { transform: translateY(0) scale(0.96); }
-  62% { transform: translateY(0) scale(1.03); }
+  0% { transform: translateY(var(--inertial-start-y, 76px)) scale(0.88); }
+  32% { transform: translateY(0) scale(var(--inertial-overshoot, var(--pop-overshoot, 1.08))); }
+  47% { transform: translateY(0) scale(var(--inertial-dip, 0.96)); }
+  62% { transform: translateY(0) scale(var(--inertial-rebound, 1.03)); }
   82%, 100% { transform: translateY(0) scale(1); }
 }
 
