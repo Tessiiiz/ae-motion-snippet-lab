@@ -87,6 +87,21 @@ def init_db() -> None:
         PRIMARY KEY (user_id, preset_id),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
+
+      CREATE TABLE IF NOT EXISTS feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        reporter_name TEXT NOT NULL,
+        username TEXT,
+        title TEXT NOT NULL,
+        detail TEXT NOT NULL,
+        page TEXT NOT NULL,
+        preset_id TEXT,
+        status TEXT NOT NULL DEFAULT 'open',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+      );
       """
     )
 
@@ -194,6 +209,22 @@ def admin_summary() -> dict:
       LIMIT 10
       """
     ).fetchall()
+    feedback_count = conn.execute(
+      "SELECT COUNT(*) AS count FROM feedback"
+    ).fetchone()["count"]
+    open_feedback_count = conn.execute(
+      "SELECT COUNT(*) AS count FROM feedback WHERE status = 'open'"
+    ).fetchone()["count"]
+    feedback_rows = conn.execute(
+      """
+      SELECT id, reporter_name, username, title, detail, page, preset_id, status, created_at, updated_at
+      FROM feedback
+      ORDER BY
+        CASE status WHEN 'open' THEN 0 ELSE 1 END,
+        created_at DESC
+      LIMIT 30
+      """
+    ).fetchall()
 
     result_users = []
     for user in users:
@@ -239,6 +270,23 @@ def admin_summary() -> dict:
     "favoriteCount": favorite_count,
     "topFavorites": [
       {"presetId": row["preset_id"], "count": row["count"]} for row in top_rows
+    ],
+    "feedbackCount": feedback_count,
+    "openFeedbackCount": open_feedback_count,
+    "feedback": [
+      {
+        "id": row["id"],
+        "reporterName": row["reporter_name"],
+        "username": row["username"],
+        "title": row["title"],
+        "detail": row["detail"],
+        "page": row["page"],
+        "presetId": row["preset_id"],
+        "status": row["status"],
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+      }
+      for row in feedback_rows
     ],
   }
 
@@ -295,10 +343,19 @@ class MotionLabHandler(SimpleHTTPRequestHandler):
     if parsed.path == "/api/recent":
       self.handle_recent()
       return
+    if parsed.path == "/api/feedback":
+      self.handle_feedback()
+      return
     self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
 
   def do_PUT(self) -> None:
     parsed = urlparse(self.path)
+    admin_feedback_prefix = "/api/admin/feedback/"
+    if parsed.path.startswith(admin_feedback_prefix):
+      feedback_id = unquote(parsed.path[len(admin_feedback_prefix):])
+      self.handle_admin_feedback(feedback_id)
+      return
+
     prefix = "/api/favorites/"
     if parsed.path.startswith(prefix):
       preset_id = unquote(parsed.path[len(prefix):])
@@ -350,6 +407,15 @@ class MotionLabHandler(SimpleHTTPRequestHandler):
 
   def clear_cookie(self) -> str:
     return f"{COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax"
+
+  def require_admin(self) -> dict | None:
+    user = self.require_user()
+    if user is None:
+      return None
+    if user["role"] != "admin":
+      self.send_json({"error": "Admin only"}, HTTPStatus.FORBIDDEN)
+      return None
+    return user
 
   def handle_login(self) -> None:
     data = self.read_json()
@@ -470,6 +536,80 @@ class MotionLabHandler(SimpleHTTPRequestHandler):
       )
 
     self.send_json(session_payload(user))
+
+  def handle_feedback(self) -> None:
+    data = self.read_json()
+    user = self.current_user()
+    reporter_name = str(data.get("name", "")).strip()
+    title = str(data.get("title", "")).strip()
+    detail = str(data.get("detail", "")).strip()
+    page = str(data.get("page", "")).strip() or "/"
+    preset_id = str(data.get("presetId", "")).strip() or None
+
+    if user:
+      reporter_name = reporter_name or user["displayName"] or user["username"]
+    reporter_name = reporter_name or "Anonymous"
+
+    if len(title) < 3:
+      self.send_error_json("Feedback title required")
+      return
+    if len(detail) < 8:
+      self.send_error_json("Feedback detail required")
+      return
+
+    now = now_iso()
+    with db() as conn:
+      cursor = conn.execute(
+        """
+        INSERT INTO feedback (user_id, reporter_name, username, title, detail, page, preset_id, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
+        """,
+        (
+          user["id"] if user else None,
+          reporter_name[:120],
+          user["username"] if user else None,
+          title[:180],
+          detail[:3000],
+          page[:500],
+          preset_id[:160] if preset_id else None,
+          now,
+          now,
+        ),
+      )
+
+    self.send_json({"ok": True, "id": cursor.lastrowid, "message": "Feedback sent"})
+
+  def handle_admin_feedback(self, feedback_id: str) -> None:
+    user = self.require_admin()
+    if user is None:
+      return
+
+    try:
+      item_id = int(feedback_id)
+    except ValueError:
+      self.send_error_json("Invalid feedback id")
+      return
+
+    data = self.read_json()
+    status = str(data.get("status", "closed")).strip().lower()
+    if status not in {"open", "closed"}:
+      self.send_error_json("Invalid feedback status")
+      return
+
+    with db() as conn:
+      cursor = conn.execute(
+        """
+        UPDATE feedback
+        SET status = ?, updated_at = ?
+        WHERE id = ?
+        """,
+        (status, now_iso(), item_id),
+      )
+      if cursor.rowcount == 0:
+        self.send_error_json("Feedback not found", HTTPStatus.NOT_FOUND)
+        return
+
+    self.send_json(admin_summary())
 
   def serve_static(self, request_path: str) -> None:
     clean_path = unquote(request_path.split("?", 1)[0])

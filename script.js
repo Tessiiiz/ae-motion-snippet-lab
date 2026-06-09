@@ -1499,6 +1499,11 @@ const elements = {
   accountPopover: document.querySelector("#accountPopover"),
   accountPanel: document.querySelector("#accountPanel"),
   adminPanel: document.querySelector("#adminPanel"),
+  feedbackForm: document.querySelector("#feedbackForm"),
+  feedbackName: document.querySelector("#feedbackName"),
+  feedbackTitle: document.querySelector("#feedbackTitle"),
+  feedbackDetail: document.querySelector("#feedbackDetail"),
+  feedbackStatus: document.querySelector("#feedbackStatus"),
   recentList: document.querySelector("#recentList"),
   clearRecent: document.querySelector("#clearRecent"),
   showAll: document.querySelector("#showAll"),
@@ -1658,6 +1663,66 @@ async function refreshAdminSummary() {
   try {
     state.adminSummary = await apiRequest("/api/admin/summary");
     renderAdmin();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function submitFeedback(event) {
+  event.preventDefault();
+
+  if (!state.apiReady) {
+    elements.feedbackStatus.textContent = "ต้องรันผ่าน server.py ก่อน ถึงจะส่งเข้าหลังบ้านได้";
+    showToast("Start local server first");
+    return;
+  }
+
+  const name = elements.feedbackName.value.trim();
+  const title = elements.feedbackTitle.value.trim();
+  const detail = elements.feedbackDetail.value.trim();
+
+  if (title.length < 3 || detail.length < 8) {
+    elements.feedbackStatus.textContent = "กรอกหัวข้อและรายละเอียดให้ครบก่อนส่ง";
+    showToast("Feedback detail required");
+    return;
+  }
+
+  const selected = presets.find((preset) => preset.id === state.selectedId);
+
+  try {
+    const result = await apiRequest("/api/feedback", {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        title,
+        detail,
+        page: window.location.pathname + window.location.search,
+        presetId: selected?.id || ""
+      })
+    });
+
+    elements.feedbackTitle.value = "";
+    elements.feedbackDetail.value = "";
+    elements.feedbackStatus.textContent = `ส่งแล้ว Ticket #${result.id}`;
+    showToast("Feedback sent");
+
+    if (state.user?.role === "admin") {
+      await refreshAdminSummary();
+    }
+  } catch (error) {
+    elements.feedbackStatus.textContent = error.message;
+    showToast(error.message);
+  }
+}
+
+async function updateFeedbackStatus(id, status) {
+  try {
+    state.adminSummary = await apiRequest(`/api/admin/feedback/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ status })
+    });
+    renderAdmin();
+    showToast(status === "closed" ? "Feedback closed" : "Feedback reopened");
   } catch (error) {
     showToast(error.message);
   }
@@ -2224,6 +2289,13 @@ function presetName(id) {
   return presets.find((preset) => preset.id === id)?.name || id;
 }
 
+function formatAdminDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+}
+
 function renderAdmin() {
   if (!state.apiReady || !state.user || state.user.role !== "admin") {
     elements.adminPanel.innerHTML = "";
@@ -2244,13 +2316,43 @@ function renderAdmin() {
 
   const users = summary.users || [];
   const topFavorites = (summary.topFavorites || []).slice(0, 5);
+  const feedback = summary.feedback || [];
+  const openFeedback = summary.openFeedbackCount || 0;
 
   elements.adminPanel.innerHTML = `
     <div class="admin-title">
       <strong>${icon("shield")}Admin Dashboard</strong>
       <button type="button" data-admin="refresh">${icon("reset")}<span>Refresh</span></button>
     </div>
-    <div class="admin-note">${users.length} users · ${summary.favoriteCount || 0} saved favorites</div>
+    <div class="admin-note">${users.length} users · ${summary.favoriteCount || 0} saved favorites · ${openFeedback} open feedback</div>
+    <div class="feedback-admin">
+      <div class="admin-user-head">
+        <strong>Feedback inbox</strong>
+        <span>${feedback.length} latest</span>
+      </div>
+      <div class="feedback-list">
+        ${feedback.length ? feedback.map((item) => {
+          const isClosed = item.status === "closed";
+          return `<div class="feedback-item${isClosed ? " is-closed" : ""}">
+            <div class="feedback-item-head">
+              <strong>${escapeHTML(item.title)}</strong>
+              <button type="button" data-feedback-id="${item.id}" data-feedback-status="${isClosed ? "open" : "closed"}">${isClosed ? "Reopen" : "Done"}</button>
+            </div>
+            <div class="feedback-meta">
+              <span>#${item.id}</span>
+              <span>${escapeHTML(item.reporterName || "Anonymous")}${item.username ? ` · @${escapeHTML(item.username)}` : ""}</span>
+              <span>${escapeHTML(item.status)}</span>
+              <span>${escapeHTML(formatAdminDate(item.createdAt))}</span>
+            </div>
+            <div class="feedback-detail">${escapeHTML(item.detail)}</div>
+            <div class="feedback-meta">
+              <span>${escapeHTML(item.page || "/")}</span>
+              ${item.presetId ? `<span>${escapeHTML(presetName(item.presetId))}</span>` : ""}
+            </div>
+          </div>`;
+        }).join("") : `<div class="admin-note">ยังไม่มี feedback</div>`}
+      </div>
+    </div>
     ${topFavorites.length ? `<div class="fav-chips">${topFavorites.map((item) => `<span class="fav-chip">${escapeHTML(presetName(item.presetId))} · ${item.count}</span>`).join("")}</div>` : ""}
     <div class="admin-list">
       ${users.map((user) => {
@@ -2690,6 +2792,12 @@ elements.accountPanel.addEventListener("keydown", (event) => {
 });
 
 elements.adminPanel.addEventListener("click", (event) => {
+  const feedbackButton = event.target.closest("[data-feedback-id]");
+  if (feedbackButton) {
+    updateFeedbackStatus(feedbackButton.dataset.feedbackId, feedbackButton.dataset.feedbackStatus);
+    return;
+  }
+
   const button = event.target.closest("[data-admin]");
   if (!button) return;
 
@@ -2697,6 +2805,8 @@ elements.adminPanel.addEventListener("click", (event) => {
     refreshAdminSummary();
   }
 });
+
+elements.feedbackForm.addEventListener("submit", submitFeedback);
 
 elements.searchInput.addEventListener("input", (event) => {
   state.search = event.target.value;

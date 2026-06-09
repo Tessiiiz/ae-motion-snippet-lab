@@ -57,7 +57,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   letter-spacing: 0;
 }
@@ -163,6 +164,7 @@ button .icon,
 .library-card,
 .tip-box,
 .side-section,
+.feedback-box,
 .guide-strip,
 .account-panel,
 .admin-panel {
@@ -268,6 +270,17 @@ button .icon,
   padding: 14px;
 }
 
+.feedback-box {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.feedback-form {
+  display: grid;
+  gap: 8px;
+}
+
 .account-panel,
 .admin-panel {
   display: grid;
@@ -319,16 +332,30 @@ button .icon,
   gap: 8px;
 }
 
-.auth-grid input {
+.auth-grid input,
+.feedback-form input,
+.feedback-form textarea {
   width: 100%;
-  height: 38px;
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 10px;
   outline: none;
 }
 
-.auth-grid input:focus {
+.auth-grid input,
+.feedback-form input {
+  height: 38px;
+}
+
+.feedback-form textarea {
+  min-height: 92px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.auth-grid input:focus,
+.feedback-form input:focus,
+.feedback-form textarea:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 3px rgba(6, 122, 115, 0.12);
 }
@@ -341,7 +368,9 @@ button .icon,
 
 .auth-actions button,
 .account-panel .wide-button,
-.admin-title button {
+.admin-title button,
+.feedback-form button,
+.feedback-item-head button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -357,13 +386,15 @@ button .icon,
 
 .auth-actions button.secondary,
 .account-panel .wide-button.secondary,
-.admin-title button {
+.admin-title button,
+.feedback-item-head button {
   background: var(--panel);
   color: var(--ink);
 }
 
 .account-note,
-.admin-note {
+.admin-note,
+.feedback-status {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
@@ -393,6 +424,74 @@ button .icon,
   max-height: 380px;
   overflow: auto;
   padding-right: 2px;
+}
+
+.feedback-admin {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-soft);
+}
+
+.feedback-list {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.feedback-item {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid rgba(6, 122, 115, 0.25);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.feedback-item.is-closed {
+  opacity: 0.68;
+  border-color: var(--line);
+}
+
+.feedback-item-head,
+.feedback-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.feedback-item-head strong {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.feedback-item-head button {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.feedback-meta {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.feedback-detail {
+  max-height: 120px;
+  overflow: auto;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 .admin-user {
