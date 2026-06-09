@@ -159,19 +159,6 @@
           <button class="mode-chip" id="showRecent" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg><span>Recent</span></button>
         </div>
 
-        <section class="feedback-box" aria-label="Feedback">
-          <div class="side-title">
-            <strong><svg class="icon" aria-hidden="true"><use href="#icon-wrench"></use></svg>Feedback</strong>
-          </div>
-          <form id="feedbackForm" class="feedback-form">
-            <input id="feedbackName" type="text" autocomplete="name" placeholder="ชื่อผู้แจ้ง" />
-            <input id="feedbackTitle" type="text" maxlength="180" placeholder="หัวข้อปัญหา" required />
-            <textarea id="feedbackDetail" maxlength="3000" placeholder="รายละเอียด เช่น preset ไหน, กดอะไรแล้วเกิดอะไร" required></textarea>
-            <button type="submit"><svg class="icon" aria-hidden="true"><use href="#icon-sparkles"></use></svg><span>Send feedback</span></button>
-          </form>
-          <div class="feedback-status" id="feedbackStatus">ส่งเข้าหลังบ้านให้แอดมินอ่านได้</div>
-        </section>
-
         <nav class="category-list" id="categoryList" aria-label="Preset categories"></nav>
 
         <section class="side-section">
@@ -186,6 +173,19 @@
           <strong>AE Paste Flow</strong>
           <span>1. เลือก layer  2. กด Alt แล้วคลิก stopwatch  3. Paste expression  4. ปรับค่าต้นโค้ด เช่น dur, amp, freq</span>
         </div>
+
+        <section class="feedback-box" aria-label="Feedback">
+          <div class="side-title">
+            <strong><svg class="icon" aria-hidden="true"><use href="#icon-wrench"></use></svg>Feedback</strong>
+          </div>
+          <form id="feedbackForm" class="feedback-form">
+            <input id="feedbackName" type="text" autocomplete="name" placeholder="ชื่อผู้แจ้ง" />
+            <input id="feedbackTitle" type="text" maxlength="180" placeholder="หัวข้อปัญหา" required />
+            <textarea id="feedbackDetail" maxlength="3000" placeholder="รายละเอียด เช่น preset ไหน, กดอะไรแล้วเกิดอะไร" required></textarea>
+            <button type="submit"><svg class="icon" aria-hidden="true"><use href="#icon-sparkles"></use></svg><span>Send feedback</span></button>
+          </form>
+          <div class="feedback-status" id="feedbackStatus">ส่งเข้าหลังบ้านให้แอดมินอ่านได้</div>
+        </section>
       </aside>
 
       <main class="workspace">
