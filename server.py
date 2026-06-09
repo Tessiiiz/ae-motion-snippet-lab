@@ -227,7 +227,7 @@ def admin_summary() -> dict:
       ORDER BY
         CASE status WHEN 'open' THEN 0 ELSE 1 END,
         created_at DESC
-      LIMIT 30
+      LIMIT 200
       """
     ).fetchall()
     feedback_count_rows = conn.execute(
@@ -391,6 +391,13 @@ class MotionLabHandler(SimpleHTTPRequestHandler):
       user_id = unquote(parsed.path[len(admin_user_prefix):])
       self.handle_admin_user_delete(user_id)
       return
+
+    admin_feedback_prefix = "/api/admin/feedback/"
+    if parsed.path.startswith(admin_feedback_prefix):
+      feedback_id = unquote(parsed.path[len(admin_feedback_prefix):])
+      self.handle_admin_feedback_delete(feedback_id)
+      return
+
     self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
 
   def read_json(self) -> dict:
@@ -635,6 +642,25 @@ class MotionLabHandler(SimpleHTTPRequestHandler):
         """,
         (status, now_iso(), item_id),
       )
+      if cursor.rowcount == 0:
+        self.send_error_json("Feedback not found", HTTPStatus.NOT_FOUND)
+        return
+
+    self.send_json(admin_summary())
+
+  def handle_admin_feedback_delete(self, feedback_id: str) -> None:
+    user = self.require_admin()
+    if user is None:
+      return
+
+    try:
+      item_id = int(feedback_id)
+    except ValueError:
+      self.send_error_json("Invalid feedback id")
+      return
+
+    with db() as conn:
+      cursor = conn.execute("DELETE FROM feedback WHERE id = ?", (item_id,))
       if cursor.rowcount == 0:
         self.send_error_json("Feedback not found", HTTPStatus.NOT_FOUND)
         return

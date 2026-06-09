@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Center | AE Motion Snippet Lab</title>
+    <meta name="theme-color" content="#171717" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="admin-center-body">
+    <div class="admin-center-shell">
+      <aside class="admin-center-nav">
+        <a class="admin-center-brand" href="index.html">
+          <span class="brand-mark">AE</span>
+          <span>
+            <strong>Motion Admin</strong>
+            <small>By Methi Chomphimai</small>
+          </span>
+        </a>
+
+        <nav class="admin-center-tabs" aria-label="Admin sections">
+          <button class="is-active" type="button" data-admin-view="overview">Overview</button>
+          <button type="button" data-admin-view="users">Users</button>
+          <button type="button" data-admin-view="feedback">Feedback</button>
+          <button type="button" data-admin-view="insights">Insights</button>
+        </nav>
+
+        <div class="admin-center-account" id="adminAccountBox"></div>
+      </aside>
+
+      <main class="admin-center-main">
+        <header class="admin-center-header">
+          <div>
+            <span class="eyebrow">Back Office</span>
+            <h1>Admin Center</h1>
+            <p>จัดการผู้ใช้, feedback, favorite insight และสถานะงานของเว็บ</p>
+          </div>
+          <div class="admin-center-header-actions">
+            <a class="admin-ghost-link" href="index.html">Back to Lab</a>
+            <button id="adminRefreshButton" type="button">Refresh</button>
+          </div>
+        </header>
+
+        <section class="admin-auth-shell" id="adminAuthPanel" hidden>
+          <div class="admin-auth-card">
+            <span class="eyebrow">Admin Login</span>
+            <h2>เข้าสู่หลังบ้าน</h2>
+            <p>ใช้บัญชี admin ที่ตั้งไว้บน server เท่านั้น</p>
+            <form class="admin-login-form" id="adminLoginForm">
+              <input id="adminLoginUsername" type="text" autocomplete="username" placeholder="username" required />
+              <input id="adminLoginPassword" type="password" autocomplete="current-password" placeholder="password" required />
+              <button type="submit">Login</button>
+            </form>
+            <div class="admin-login-status" id="adminLoginStatus"></div>
+          </div>
+        </section>
+
+        <section class="admin-center-app" id="adminAppPanel" hidden>
+          <section class="admin-view is-active" id="adminViewOverview" data-view-panel="overview"></section>
+          <section class="admin-view" id="adminViewUsers" data-view-panel="users"></section>
+          <section class="admin-view" id="adminViewFeedback" data-view-panel="feedback"></section>
+          <section class="admin-view" id="adminViewInsights" data-view-panel="insights"></section>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast admin-center-toast" id="adminCenterToast" role="status" aria-live="polite">Saved</div>
+
+    <script src="admin.js"></script>
+  </body>
+</html>

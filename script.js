@@ -2342,6 +2342,7 @@ function renderAdminDashboard() {
         <strong>${icon("shield")}Admin</strong>
         <button type="button" data-admin="refresh">${icon("reset")}<span>Load</span></button>
       </div>
+      <a class="admin-open-link" href="admin.html">Open Admin Center</a>
       <div class="admin-note">Load users, favorites, and feedback inbox.</div>`;
     return;
   }
@@ -2359,6 +2360,7 @@ function renderAdminDashboard() {
       <strong>${icon("shield")}Admin Dashboard</strong>
       <button type="button" data-admin="refresh">${icon("reset")}<span>Refresh</span></button>
     </div>
+    <a class="admin-open-link" href="admin.html">Open full Admin Center</a>
     <div class="admin-metrics">
       <div class="admin-metric">
         <span>Users</span>
