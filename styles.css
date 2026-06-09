@@ -1354,17 +1354,29 @@ pre {
 .typewriter-text {
   position: relative;
   z-index: 1;
-  width: 148px;
-  overflow: hidden;
-  border-right: 3px solid var(--ink);
+  display: inline-flex;
+  align-items: center;
+  min-width: 6ch;
+  overflow: visible;
   color: var(--ink);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: 24px;
   font-weight: 900;
+  letter-spacing: 0;
   white-space: nowrap;
 }
 
+.typewriter-text::after {
+  content: "";
+  width: 3px;
+  height: 1em;
+  margin-left: 3px;
+  background: currentColor;
+  animation: caret 700ms step-end infinite;
+}
+
 .large .typewriter-text {
-  width: 212px;
+  min-width: 6ch;
   font-size: 34px;
 }
 
@@ -1482,7 +1494,7 @@ pre {
 }
 
 .motion-typewriter {
-  animation: typewriter var(--preview-duration, 2.1s) steps(8) infinite, caret 700ms step-end infinite;
+  animation: none;
 }
 
 .motion-wave {
@@ -1696,13 +1708,8 @@ pre {
   45%, 100% { opacity: var(--opacity-high, 1); transform: translateY(0); }
 }
 
-@keyframes typewriter {
-  0% { width: 0; }
-  66%, 100% { width: 148px; }
-}
-
 @keyframes caret {
-  50% { border-color: transparent; }
+  50% { opacity: 0; }
 }
 
 @keyframes textWave {

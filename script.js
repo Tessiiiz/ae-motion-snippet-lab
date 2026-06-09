@@ -1877,6 +1877,20 @@ function counterPreviewAttributes(preset) {
   ].join(" ");
 }
 
+function typewriterPreviewText() {
+  return "MOTION";
+}
+
+function typewriterPreviewAttributes(preset) {
+  const text = typewriterPreviewText(preset);
+  return [
+    `data-typewriter-preview="true"`,
+    `data-typewriter-text="${escapeHTML(text)}"`,
+    `data-typewriter-dur="${escapeHTML(paramValueByKey(preset, "dur", 1.2))}"`,
+    `aria-label="${escapeHTML(text)}"`
+  ].join(" ");
+}
+
 function buildPreview(preset, isLarge = false) {
   const largeClass = isLarge ? " large" : "";
   const style = previewInlineStyle(preset);
@@ -1904,7 +1918,7 @@ function buildPreview(preset, isLarge = false) {
   }
 
   if (preset.preview === "typewriter") {
-    return `${stageOpen}<div class="typewriter-text ${motion}">MOTION</div></div>`;
+    return `${stageOpen}<div class="typewriter-text ${motion}" ${typewriterPreviewAttributes(preset)}></div></div>`;
   }
 
   if (preset.preview === "wipe") {
@@ -2028,9 +2042,16 @@ function syncCounterPreviewElement(element, preset) {
   element.dataset.counterSlow = String(paramValueByKey(preset, "slowShare", 50));
 }
 
+function syncTypewriterPreviewElement(element, preset) {
+  element.dataset.typewriterText = typewriterPreviewText(preset);
+  element.dataset.typewriterDur = String(paramValueByKey(preset, "dur", 1.2));
+  element.setAttribute("aria-label", element.dataset.typewriterText);
+}
+
 function updateCounterPreviews(timestamp = 0) {
   const counters = document.querySelectorAll("[data-counter-preview]");
-  if (!counters.length) {
+  const typewriters = document.querySelectorAll("[data-typewriter-preview]");
+  if (!counters.length && !typewriters.length) {
     counterPreviewFrame = 0;
     return;
   }
@@ -2049,11 +2070,22 @@ function updateCounterPreviews(timestamp = 0) {
     counter.textContent = formatCounterPreviewValue(current);
   });
 
+  typewriters.forEach((typewriter, index) => {
+    const text = typewriter.dataset.typewriterText || "";
+    const dur = clamp(Number(typewriter.dataset.typewriterDur || 1.2), 0.1, 12);
+    const durationMs = dur * 1000;
+    const holdMs = 620;
+    const localTime = (timestamp + index * 90) % (durationMs + holdMs);
+    const progress = localTime > durationMs ? 1 : localTime / durationMs;
+    const count = Math.min(text.length, Math.floor(easeInOutUnit(progress) * (text.length + 0.001)));
+    typewriter.textContent = text.slice(0, count);
+  });
+
   counterPreviewFrame = window.requestAnimationFrame(updateCounterPreviews);
 }
 
 function startCounterPreviews() {
-  if (counterPreviewFrame || !document.querySelector("[data-counter-preview]")) return;
+  if (counterPreviewFrame || !document.querySelector("[data-counter-preview], [data-typewriter-preview]")) return;
   counterPreviewFrame = window.requestAnimationFrame(updateCounterPreviews);
 }
 
@@ -2503,6 +2535,7 @@ function updateParamPreview(input, selected) {
   const code = document.querySelector("#detailCode");
   const previewStage = document.querySelector("#detailPreview .preview-stage");
   const previewText = document.querySelector("#detailPreview .preview-text");
+  const typewriterText = document.querySelector("#detailPreview [data-typewriter-preview]");
 
   if (param && output) {
     output.textContent = `${formatNumber(input.value)}${param.unit}`;
@@ -2522,6 +2555,11 @@ function updateParamPreview(input, selected) {
     } else {
       previewText.textContent = previewLabel(selected);
     }
+    startCounterPreviews();
+  }
+
+  if (typewriterText) {
+    syncTypewriterPreviewElement(typewriterText, selected);
     startCounterPreviews();
   }
 }
